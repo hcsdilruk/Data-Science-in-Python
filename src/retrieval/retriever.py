@@ -3,6 +3,7 @@ from langchain_community.embeddings import HuggingFaceEmbeddings
 import re
 
 
+
 class Retriever:
 
     def __init__(self):
