@@ -23,6 +23,12 @@ Instead of relying on the language model's knowledge, the chatbot retrieves rele
 - 📅 Filter documents by Academic Year
 - 📚 Supports multiple handbook versions
 - 🔁 Interactive question-answer loop
+- 📊 Extracts historical cut-off Z-score tables into a clean dataset
+- 🔮 Predicts next year's cut-offs (scikit-learn linear regression + uncertainty band)
+- 📈 Trend analysis: is a course's cut-off rising or falling?
+- 🎯 Admission chances: "I got 1.85 from Gampaha — what can I get into?"
+- 🎓 Intake / demand forecasts per course
+- 🧭 Question router: prediction questions answered from data (no LLM hallucination), factual questions via RAG
 
 ---
 
@@ -150,10 +156,44 @@ python ingest.py
 
 ---
 
-## 7. Run the Chatbot
+## 7. Build the Cut-off / Intake Datasets (for prediction questions)
+
+```bash
+python src/cutoffs/extract_cutoffs.py
+python src/cutoffs/extract_intakes.py
+```
+
+This parses the Section 9 cut-off tables (and "Proposed Intake" figures)
+from every handbook in `data/pdfs/` — plus any standalone UGC cut-off PDFs
+placed in `data/cutoffs_raw/` — into `data/cutoffs/*.csv`.
+
+To evaluate prediction accuracy (leave-last-year-out backtest, MAE):
+
+```bash
+python src/prediction/predictor.py
+```
+
+---
+
+## 8. Run the Chatbot
 
 ```bash
 python main.py
+```
+
+---
+
+# 🔮 Prediction Questions
+
+Questions about the future or about your own chances are detected
+automatically and answered from the extracted historical dataset using
+scikit-learn — the language model never generates the numbers.
+
+```
+What will the Z-score cut-off be for Medicine in Colombo district next year?
+Is the cut-off for Engineering in Kandy rising or falling?
+I got a Z-score of 1.85 from Gampaha. What courses can I get into?
+What will the intake for Software Engineering be next year?
 ```
 
 ---
