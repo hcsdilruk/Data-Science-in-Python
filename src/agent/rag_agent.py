@@ -1,23 +1,24 @@
 from langchain_ollama import OllamaLLM
+import json
+import re
 
 
 class RAGAgent:
 
     def __init__(self):
-        self.llm = OllamaLLM(model="llama3.2")
+
+        self.llm = OllamaLLM(
+            model="llama3.2",
+            temperature=0
+        )
+
 
     def generate_answer(self, question, context):
 
         prompt = f"""
-You are a university assistant.
+You are a university document assistant.
 
-Rules:
-1. Use ONLY the provided context.
-2. If information is missing, do not guess.
-3. Do not use outside knowledge.
-4. Quote details directly from the context when possible.
-5. If the answer is not present, say:
-"I could not find that information in the provided documents."
+Use ONLY the context below.
 
 Context:
 {context}
@@ -25,9 +26,29 @@ Context:
 Question:
 {question}
 
+Give the answer directly.
+
+If the information exists, answer it.
+If not, say:
+I could not find that information in the provided documents.
+
 Answer:
 """
 
+
         response = self.llm.invoke(prompt)
 
-        return response
+        response = response.strip()
+
+
+        if response:
+            return {
+                "found": True,
+                "answer": response
+            }
+
+
+        return {
+            "found": False,
+            "answer": ""
+        }

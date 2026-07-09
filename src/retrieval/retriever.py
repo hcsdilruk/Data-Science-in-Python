@@ -1,7 +1,6 @@
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 import re
-
 
 
 class Retriever:
@@ -17,11 +16,15 @@ class Retriever:
             embedding_function=self.embedding_model
         )
 
+
     def get_relevant_chunks(self, query):
+
+        print("\n🔎 Searching for:", query)
 
         year_match = re.search(r"20\d{2}", query)
 
         filter_year = None
+
 
         if year_match:
 
@@ -36,30 +39,47 @@ class Retriever:
 
             filter_year = year_mapping.get(year)
 
-        if filter_year:
 
-            print(f"\nFiltering by academic year: {filter_year}")
+        try:
 
-            results = self.vectorstore.similarity_search(
-                query,
-                k=15,
-                filter={"academic_year": filter_year}
-            )
+            if filter_year:
 
-        else:
+                print("📌 Using year filter:", filter_year)
 
-            results = self.vectorstore.similarity_search(
-                query,
-                k=15
-            )
+                results = self.vectorstore.similarity_search(
+                    query,
+                    k=5,
+                    filter={
+                        "academic_year": filter_year
+                    }
+                )
 
-        print(f"\nResults found: {len(results)}")
+            else:
 
-        for i, doc in enumerate(results, start=1):
+                print("📌 No year filter - searching all documents")
 
-            print(f"\n----- RESULT {i} -----")
-            print("Academic Year:", doc.metadata.get("academic_year", "Not Found"))
-            print("Source:", doc.metadata.get("source", "Unknown"))
-            print("Page:", doc.metadata.get("page", "Unknown"))
+                results = self.vectorstore.similarity_search(
+                    query,
+                    k=5
+                )
 
-        return results
+
+            print("✅ Retrieved chunks:", len(results))
+
+
+            for i, doc in enumerate(results):
+
+                print("\n--- CHUNK", i+1, "---")
+                print(doc.page_content[:300])
+
+                print("Metadata:", doc.metadata)
+
+
+            return results
+
+
+        except Exception as e:
+
+            print("❌ Retrieval Error:", e)
+
+            return []
