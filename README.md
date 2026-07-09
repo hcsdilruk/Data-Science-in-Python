@@ -490,7 +490,7 @@ Used text chunking and preprocessing.
 
 # 👨‍🎓 Academic Project
 
-Developed for: DS
+Developed for: DS project
 
 **Faculty of Computing**
 
