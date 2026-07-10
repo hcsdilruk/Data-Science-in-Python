@@ -5,6 +5,7 @@ from src.prediction.predictor import CutoffPredictor
 from src.utils.answered_manager import AnsweredManager
 from src.logs.unanswered_logger import UnansweredLogger
 
+
 def main():
 
     print("🎓 Welcome to the University RAG Chatbot!")
@@ -19,77 +20,67 @@ def main():
 
     while True:
 
-        question = input(" Ask a Question❓ ").strip()
+        question = input("\nAsk a Question❓ ").strip()
 
         if question.lower() in ["exit", "quit"]:
+            print("\n👋 Thank you for using the University RAG Chatbot!")
             break
 
+        # ---------- Prediction Questions ----------
         if router.classify(question) == "prediction":
-
+            print("\n💬 ANSWER\n")
             print(router.answer(question))
-            continue
+        else:
 
-        # ---------- PDF Search ----------
+            # ---------- PDF Retrieval ----------
+            results = retriever.get_relevant_chunks(question)
 
-        results = retriever.get_relevant_chunks(question)
+            answer_text = ""
 
-        if results:
+            if results:
 
-            context = "\n\n".join(
-                doc.page_content for doc in results
-            )
+                context = "\n\n".join(
+                    doc.page_content for doc in results
+                )
 
-            answer = agent.generate_answer(question, context)
+                answer = agent.generate_answer(question, context)
 
-            # If LLM says answer not found, check CSV
-            if isinstance(answer, dict):
-                answer_text = answer.get("answer", "")
-            else:
-                answer_text = answer
+                if isinstance(answer, dict):
+                    found = answer.get("found", False)
+                    answer_text = answer.get("answer", "").strip()
+                else:
+                    found = True
+                    answer_text = str(answer).strip()
 
+                # If LLM couldn't answer
+                if (
+                    not found
+                    or answer_text == ""
+                    or answer_text.lower().startswith("i could not find")
+                ):
+                    answer_text = ""
 
-            if answer_text.lower().startswith("i could not find"):
+            # ---------- Check answered_questions.csv ----------
+            if not answer_text:
 
                 csv_answer = answered.get_answer(question)
 
                 if csv_answer:
-
-                    print("\n💬 ANSWER\n")
-                    print(csv_answer)
-
+                    answer_text = csv_answer
                 else:
-
                     logger.log_question(question)
+                    answer_text = (
+                        "I could not find that information in the provided documents."
+                    )
 
-                    print("\n💬 ANSWER\n")
-                    print("I could not find that information in the provided documents.")
+            # ---------- Display Final Answer ----------
+            print("\n💬 ANSWER\n")
+            print(answer_text)
 
-            else:
-
-                print("\n💬 ANSWER\n")
-                print(answer)
-
-        else:
-
-            # ---------- answered_questions.csv ----------
-
-            csv_answer = answered.get_answer(question)
-
-            if csv_answer:
-
-                print("\n💬 ANSWER\n")
-                print(csv_answer)
-
-            else:
-
-                logger.log_question(question)
-
-                print("\n💬 ANSWER\n")
-                print("I could not find that information in the provided documents.")
-
-        again = input("\nAnother question? (yes/no): ").lower()
+        again = input("\nAnother question? (yes/no): ").strip().lower()
 
         if again not in ["yes", "y"]:
+            print("\n👋 Thank you for using the University RAG Chatbot!")
             break
 
 
