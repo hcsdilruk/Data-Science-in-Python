@@ -73,7 +73,7 @@ class CutoffPredictor:
 
     
     def series(self, course, district, university=None):
-        """Historical (year, zscore) points for one selection."""
+        
         d = self.df[(self.df["course"] == course)
                     & (self.df["district"] == district)]
         if university:
@@ -86,7 +86,7 @@ class CutoffPredictor:
     
 
     def forecast(self, course, district, university=None, target_year=None):
-        """Predict the cut-off for the year after the last known one."""
+        
         s = self.series(course, district, university)
         if s.empty:
             return None
@@ -118,7 +118,7 @@ class CutoffPredictor:
         }
 
     def trend(self, course, district, university=None):
-        """Direction of movement of a cut-off over the known years."""
+        
         f = self.forecast(course, district, university)
         if not f:
             return None
@@ -136,7 +136,7 @@ class CutoffPredictor:
         return f
 
     def admission_chances(self, zscore, district, course=None, top=15):
-        """Classify courses as likely / borderline / unlikely for a student."""
+        
         courses = [course] if course else self.courses
         results = []
         for c in courses:
@@ -177,7 +177,7 @@ class CutoffPredictor:
         return close[0] if close else None
 
     def intake_forecast(self, course):
-        """Predict next year's proposed intake for a course (island-wide)."""
+        
         if self.intakes is None:
             return None
         s = (self.intakes[self.intakes["course"] == course]
@@ -204,9 +204,9 @@ class CutoffPredictor:
                 "history": history, "direction": direction}
 
     
-
+ 
     def evaluate(self):
-        """Predict the newest year from older ones; report MAE."""
+        
         newest = int(self.df["year"].max())
         y_true, y_pred, rows = [], [], []
         keys = self.df[["course", "district"]].drop_duplicates()
@@ -233,24 +233,6 @@ class CutoffPredictor:
                 "details": pd.DataFrame(rows)}
 
 
-if __name__ == "__main__":
-    p = CutoffPredictor()
-    print(f"Loaded {len(p.df)} rows | {len(p.courses)} courses | "
-          f"{len(p.districts)} districts")
 
-    print("\n--- forecast: Medicine, Colombo ---")
-    print(p.forecast("MEDICINE", "COLOMBO"))
 
-    print("\n--- trend: Engineering, Kandy ---")
-    print(p.trend(p.match_course("ENGINEERING"), "KANDY"))
-
-    print("\n--- chances: z=1.85, Gampaha ---")
-    for r in p.admission_chances(1.85, "GAMPAHA")[:8]:
-        print(f"  {r['verdict']:10s} {r['course'][:40]:42s} "
-              f"pred={r['prediction']} gap={r['gap']:+.3f}")
-
-    print("\n--- backtest ---")
-    ev = p.evaluate()
-    print(f"series: {ev['n_series']}  target year: {ev['target_year']}  "
-          f"MAE: {ev['mae']}")
-    print(ev["details"].nlargest(5, "abs_error").to_string(index=False))
+    
