@@ -1,4 +1,3 @@
-
 import re
 
 PREDICT_RE = re.compile(
@@ -25,8 +24,6 @@ class QuestionRouter:
 
     def classify(self, question):
         return "prediction" if PREDICT_RE.search(question) else "factual"
-
-
 
     def parse(self, question):
         q_upper = question.upper()
@@ -88,7 +85,6 @@ class QuestionRouter:
                 return cand
         return None
 
-    
 
     def answer(self, question):
         p = self.parse(question)
