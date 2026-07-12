@@ -1,5 +1,5 @@
 from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
 import os
 from dotenv import load_dotenv
 
@@ -9,8 +9,9 @@ class ChromaDBManager:
 
     def create_vector_store(self, chunks):
 
+
         embedding_model = HuggingFaceEmbeddings(
-            model_name=os.getenv("EMBEDDING_MODEL")
+            model_name="sentence-transformers/all-MiniLM-L6-v2"
         )
 
         vectorstore = Chroma.from_documents(

@@ -4,6 +4,8 @@ from src.agent.router import QuestionRouter
 from src.prediction.predictor import CutoffPredictor
 from src.utils.answered_manager import AnsweredManager
 from src.logs.unanswered_logger import UnansweredLogger
+from dotenv import load_dotenv
+load_dotenv()
 
 
 def main():
@@ -34,6 +36,7 @@ def main():
 
             # ---------- PDF Retrieval ----------
             results = retriever.get_relevant_chunks(question)
+            print("DEBUG: Number of chunks:", len(results))
 
             answer_text = ""
 
@@ -54,9 +57,9 @@ def main():
                 print("\n" + "=" * 60)
 
                 context = "\n\n".join(
-                    doc.page_content for doc in results
+                    doc.page_content
+                    for doc in results[:3]
                 )
-
                 answer = agent.generate_answer(question, context)
 
                 if isinstance(answer, dict):

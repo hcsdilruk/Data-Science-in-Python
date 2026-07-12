@@ -24,7 +24,13 @@ class Retriever:
 
         year_match = re.search(r"20\d{2}", query)
 
-        filter_year = None
+        course_match = re.search(
+            r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
+            query,
+            re.IGNORECASE
+        )
+
+        filter_dict = {}
 
         if year_match:
 
@@ -37,24 +43,54 @@ class Retriever:
                 "2024": "2024-2025"
             }
 
-            filter_year = year_mapping.get(year)
+            if year in year_mapping:
+                filter_dict["academic_year"] = year_mapping[year]
+
+        k = int(os.getenv("TOP_K", 5))
+        fetch_k = int(os.getenv("FETCH_K", 20))
 
         try:
 
-            if filter_year:
+            if filter_dict:
 
-                results = self.vectorstore.similarity_search(
-                    query,
-                    k=int(os.getenv("TOP_K")),
-                    filter={"academic_year": filter_year}
+                results = self.vectorstore.max_marginal_relevance_search(
+                    query=query,
+                    k=k,
+                    fetch_k=fetch_k,
+                    filter=filter_dict
                 )
 
             else:
 
-                results = self.vectorstore.similarity_search(
-                    query,
-                    k=int(os.getenv("TOP_K"))
+                results = self.vectorstore.max_marginal_relevance_search(
+                    query=query,
+                    k=k,
+                    fetch_k=fetch_k
                 )
+
+            if course_match:
+
+                course_code = course_match.group(1)
+
+                exact = []
+                others = []
+
+                for doc in results:
+
+                    if re.search(
+                        rf"Course\s*Code\s*[-–:]\s*{course_code}",
+                        doc.page_content,
+                        re.IGNORECASE
+                    ):
+                        exact.append(doc)
+                    else:
+                        others.append(doc)
+
+                # Return only exact matches if found
+                if exact:
+                    results = exact
+                else:
+                    results = others
 
             return results
 
