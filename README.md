@@ -336,12 +336,34 @@ This process:
 * Generates embeddings
 * Stores vectors in ChromaDB
 
+This process:
+
+* Loads PDFs
+* Creates chunks
+* Generates embeddings
+* Stores vectors in ChromaDB
+
 ---
 
 ## 7. Start Chatbot
 
 ```bash
 python main.py
+```
+
+---
+
+# 🔮 Prediction Questions
+
+Questions about the future or about your own chances are detected
+automatically and answered from the extracted historical dataset using
+scikit-learn — the language model never generates the numbers.
+
+```
+What will the Z-score cut-off be for Medicine in Colombo district next year?
+Is the cut-off for Engineering in Kandy rising or falling?
+I got a Z-score of 1.85 from Gampaha. What courses can I get into?
+What will the intake for Software Engineering be next year?
 ```
 
 ---
