@@ -1,6 +1,10 @@
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 import re
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 
 class Retriever:
@@ -8,11 +12,11 @@ class Retriever:
     def __init__(self):
 
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name=os.getenv("EMBEDDING_MODEL")
         )
 
         self.vectorstore = Chroma(
-            persist_directory="db",
+            persist_directory=os.getenv("CHROMA_DB_PATH"),
             embedding_function=self.embedding_model
         )
 
@@ -41,7 +45,7 @@ class Retriever:
 
                 results = self.vectorstore.similarity_search(
                     query,
-                    k=5,
+                    k=int(os.getenv("TOP_K")),
                     filter={"academic_year": filter_year}
                 )
 
@@ -49,7 +53,7 @@ class Retriever:
 
                 results = self.vectorstore.similarity_search(
                     query,
-                    k=5
+                    k=int(os.getenv("TOP_K"))
                 )
 
             return results

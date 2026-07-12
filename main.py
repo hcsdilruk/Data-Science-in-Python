@@ -39,6 +39,20 @@ def main():
 
             if results:
 
+                print("\n" + "=" * 60)
+                print("📄 RETRIEVED CHUNKS")
+                print("=" * 60)
+
+                for i, doc in enumerate(results, 1):
+
+                    year = doc.metadata.get("academic_year", "Unknown")
+
+                    print(f"\nChunk {i} | Academic Year: {year}")
+                    print("-" * 60)
+                    print(doc.page_content[:500])
+
+                print("\n" + "=" * 60)
+
                 context = "\n\n".join(
                     doc.page_content for doc in results
                 )

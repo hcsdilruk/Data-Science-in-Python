@@ -2,6 +2,9 @@ from src.ingestion.pdf_loader import PDFLoader
 from src.chunking.chunker import TextChunker
 from src.vectorstore.chroma_db import ChromaDBManager
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 loader = PDFLoader()
 chunker = TextChunker()
@@ -9,7 +12,7 @@ db_manager = ChromaDBManager()
 
 all_chunks = []
 
-pdf_folder = "data/pdfs"
+pdf_folder = os.getenv("PDF_DIRECTORY")
 
 
 for file in os.listdir(pdf_folder):
