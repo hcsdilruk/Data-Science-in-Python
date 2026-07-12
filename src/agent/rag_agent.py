@@ -2,13 +2,17 @@ from langchain_ollama import OllamaLLM
 import json
 import re
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 class RAGAgent:
 
     def __init__(self):
 
         self.llm = OllamaLLM(
-            model="llama3.2",
+            model=os.getenv("OLLAMA_MODEL"),
             temperature=0
         )
 
