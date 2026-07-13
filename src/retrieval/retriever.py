@@ -1,7 +1,10 @@
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 import re
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 
 class Retriever:
@@ -9,11 +12,11 @@ class Retriever:
     def __init__(self):
 
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name=os.getenv("EMBEDDING_MODEL")
         )
 
         self.vectorstore = Chroma(
-            persist_directory="db",
+            persist_directory=os.getenv("CHROMA_DB_PATH"),
             embedding_function=self.embedding_model
         )
 
@@ -21,7 +24,13 @@ class Retriever:
 
         year_match = re.search(r"20\d{2}", query)
 
-        filter_year = None
+        course_match = re.search(
+            r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
+            query,
+            re.IGNORECASE
+        )
+
+        filter_dict = {}
 
         if year_match:
 
@@ -34,32 +43,58 @@ class Retriever:
                 "2024": "2024-2025"
             }
 
-            filter_year = year_mapping.get(year)
+            if year in year_mapping:
+                filter_dict["academic_year"] = year_mapping[year]
 
-        if filter_year:
+        k = int(os.getenv("TOP_K", 5))
+        fetch_k = int(os.getenv("FETCH_K", 20))
 
-            print(f"\nFiltering by academic year: {filter_year}")
+        try:
 
-            results = self.vectorstore.similarity_search(
-                query,
-                k=15,
-                filter={"academic_year": filter_year}
-            )
+            if filter_dict:
 
-        else:
+                results = self.vectorstore.max_marginal_relevance_search(
+                    query=query,
+                    k=k,
+                    fetch_k=fetch_k,
+                    filter=filter_dict
+                )
 
-            results = self.vectorstore.similarity_search(
-                query,
-                k=15
-            )
+            else:
 
-        print(f"\nResults found: {len(results)}")
+                results = self.vectorstore.max_marginal_relevance_search(
+                    query=query,
+                    k=k,
+                    fetch_k=fetch_k
+                )
 
-        for i, doc in enumerate(results, start=1):
+            if course_match:
 
-            print(f"\n----- RESULT {i} -----")
-            print("Academic Year:", doc.metadata.get("academic_year", "Not Found"))
-            print("Source:", doc.metadata.get("source", "Unknown"))
-            print("Page:", doc.metadata.get("page", "Unknown"))
+                course_code = course_match.group(1)
 
-        return results
+                exact = []
+                others = []
+
+                for doc in results:
+
+                    if re.search(
+                        rf"Course\s*Code\s*[-–:]\s*{course_code}",
+                        doc.page_content,
+                        re.IGNORECASE
+                    ):
+                        exact.append(doc)
+                    else:
+                        others.append(doc)
+
+                # Return only exact matches if found
+                if exact:
+                    results = exact
+                else:
+                    results = others
+
+            return results
+
+        except Exception as e:
+
+            print(f"Retrieval Error: {e}")
+            return []
