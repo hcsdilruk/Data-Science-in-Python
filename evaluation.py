@@ -8,6 +8,7 @@ from src.agent.rag_agent import RAGAgent
 # expected = False -> System should not answer
 
 test_questions = [
+    # ---------- In-domain questions (Expected = True) ----------
     {
         "question": "What are the entry requirements for university admission?",
         "expected": True,
@@ -29,13 +30,67 @@ test_questions = [
         "expected": True,
     },
     {
+        "question": "What are the admission requirements for Engineering?",
+        "expected": True,
+    },
+    {
+        "question": "What are the qualifications required for Medicine?",
+        "expected": True,
+    },
+    {
+        "question": "How can I apply for university admission?",
+        "expected": True,
+    },
+    {
+        "question": "What documents are required for university admission?",
+        "expected": True,
+    },
+    {
+        "question": "What is the minimum qualification for Law?",
+        "expected": True,
+    },
+    {
+        "question": "How are university selections made?",
+        "expected": True,
+    },
+    {
+        "question": "Can I change my university course preferences after applying?",
+        "expected": True,
+    },
+    {
+        "question": "What should I do if I miss the university registration deadline?",
+        "expected": True,
+    },
+    {
+        "question": "How many attempts are allowed for university admission?",
+        "expected": True,
+    },
+    {
+        "question": "What is the admission process for undergraduate programmes?",
+        "expected": True,
+    },
+
+    # ---------- Out-of-domain questions (Expected = False) ----------
+    {
+        "question": "What is the capital city of Japan?",
+        "expected": False,
+    },
+    {
+        "question": "Who won the FIFA World Cup in 2022?",
+        "expected": False,
+    },
+    {
         "question": "Who is the President of Sri Lanka in 1990?",
         "expected": False,
     },
     {
-        "question": "What is the capital city of Japan?",
+        "question": "What is Python programming language?",
         "expected": False,
-    }
+    },
+    {
+        "question": "How do I bake a chocolate cake?",
+        "expected": False,
+    },
 ]
 
 
