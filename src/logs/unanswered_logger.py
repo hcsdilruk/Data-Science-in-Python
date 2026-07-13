@@ -18,18 +18,25 @@ class UnansweredLogger:
     def log_question(self, question):
 
         rows = []
-
         found = False
 
         if os.path.exists(self.file):
             with open(self.file, "r", newline="", encoding="utf-8") as f:
                 rows = list(csv.reader(f))
 
+        if not rows:
+            rows = [["Date", "Question", "Times Asked", "Status"]]
+
         header = rows[0]
         data = rows[1:]
 
         for row in data:
-            if row[1].strip().lower() == question.lower():
+
+            # Empty / invalid rows skip කරනවා
+            if len(row) < 4:
+                continue
+
+            if row[1].strip().lower() == question.strip().lower():
                 row[2] = str(int(row[2]) + 1)
                 found = True
                 break
