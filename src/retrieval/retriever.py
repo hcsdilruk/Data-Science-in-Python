@@ -22,86 +22,85 @@ class Retriever:
 
     def get_relevant_chunks(self, query):
 
-    year_match = re.search(r"20\d{2}", query)
+        year_match = re.search(r"20\d{2}", query)
 
-    course_match = re.search(
-        r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
-        query,
-        re.IGNORECASE
-    )
+        course_match = re.search(
+            r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
+            query,
+            re.IGNORECASE
+        )
 
-    filter_dict = {}
+        filter_dict = {}
 
-    if year_match:
+        if year_match:
 
-        year = year_match.group()
+            year = year_match.group()
 
-        year_mapping = {
-            "2020": "2020-2021",
-            "2022": "2022-2023",
-            "2023": "2023-2024",
-            "2024": "2024-2025"
-        }
+            year_mapping = {
+                "2020": "2020-2021",
+                "2022": "2022-2023",
+                "2023": "2023-2024",
+                "2024": "2024-2025"
+            }
 
-        if year in year_mapping:
-            filter_dict["academic_year"] = year_mapping[year]
+            if year in year_mapping:
+                filter_dict["academic_year"] = year_mapping[year]
 
-    k = int(os.getenv("TOP_K", 5))
+        k = int(os.getenv("TOP_K", 5))
 
-    # Relevance threshold (0 - 1)
-    THRESHOLD = 0.45
+        THRESHOLD = 0.45
 
-    try:
+        try:
 
-        if filter_dict:
-            results = self.vectorstore.similarity_search_with_relevance_scores(
-                query=query,
-                k=k,
-                filter=filter_dict
-            )
-        else:
-            results = self.vectorstore.similarity_search_with_relevance_scores(
-                query=query,
-                k=k
-            )
-
-        filtered_docs = []
-
-        print("\nDEBUG: Relevance Scores")
-        print("-" * 40)
-
-        for doc, score in results:
-            print(f"{score:.3f}")
-
-            if score >= THRESHOLD:
-                filtered_docs.append(doc)
-
-        if course_match:
-
-            course_code = course_match.group(1)
-
-            exact = []
-            others = []
-
-            for doc in filtered_docs:
-
-                if re.search(
-                    rf"Course\s*Code\s*[-–:]?\s*{course_code}",
-                    doc.page_content,
-                    re.IGNORECASE
-                ):
-                    exact.append(doc)
-                else:
-                    others.append(doc)
-
-            if exact:
-                filtered_docs = exact
+            if filter_dict:
+                results = self.vectorstore.similarity_search_with_relevance_scores(
+                    query=query,
+                    k=k,
+                    filter=filter_dict
+                )
             else:
-                filtered_docs = others
+                results = self.vectorstore.similarity_search_with_relevance_scores(
+                    query=query,
+                    k=k
+                )
 
-        return filtered_docs
+            filtered_docs = []
 
-    except Exception as e:
+            print("\nDEBUG: Relevance Scores")
+            print("-" * 40)
 
-        print(f"Retrieval Error: {e}")
-        return []
+            for doc, score in results:
+                print(f"{score:.3f}")
+
+                if score >= THRESHOLD:
+                    filtered_docs.append(doc)
+
+            if course_match:
+
+                course_code = course_match.group(1)
+
+                exact = []
+                others = []
+
+                for doc in filtered_docs:
+
+                    if re.search(
+                        rf"Course\s*Code\s*[-–:]?\s*{course_code}",
+                        doc.page_content,
+                        re.IGNORECASE
+                    ):
+                        exact.append(doc)
+                    else:
+                        others.append(doc)
+
+                if exact:
+                    filtered_docs = exact
+                else:
+                    filtered_docs = others
+
+            return filtered_docs
+
+        except Exception as e:
+
+            print(f"Retrieval Error: {e}")
+            return []
