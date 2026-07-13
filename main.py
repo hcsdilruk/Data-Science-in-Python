@@ -80,12 +80,17 @@ def main():
             # ---------- Check answered_questions.csv ----------
             if not answer_text:
 
+                print("DEBUG: answer_text is empty")
+
                 csv_answer = answered.get_answer(question)
 
                 if csv_answer:
+                    print("DEBUG: Found answer in answered_questions.csv")
                     answer_text = csv_answer
                 else:
+                    print("DEBUG: Logging unanswered question...")
                     logger.log_question(question)
+                    print("DEBUG: Logged successfully")
                     answer_text = (
                         "I could not find that information in the provided documents."
                     )
