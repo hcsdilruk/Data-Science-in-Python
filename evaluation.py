@@ -4,35 +4,66 @@ from src.retrieval.retriever import Retriever
 from src.agent.rag_agent import RAGAgent
 
 
+# expected = True  -> System should answer
+# expected = False -> System should not answer
+
 test_questions = [
-    "What are the entry requirements for university admission?",
-    "What are the basic qualifications required for Computer Science?",
-    "How do I apply for an exam deferral?",
-    "What are the library regulations?",
-    "What are the academic rules for students?"
+    {
+        "question": "What are the entry requirements for university admission?",
+        "expected": True,
+    },
+    {
+        "question": "What are the basic qualifications required for Computer Science?",
+        "expected": True,
+    },
+    {
+        "question": "How do I apply for an exam deferral?",
+        "expected": True,
+    },
+    {
+        "question": "What are the library regulations?",
+        "expected": True,
+    },
+    {
+        "question": "What are the academic rules for students?",
+        "expected": True,
+    },
+    {
+        "question": "Who is the President of Sri Lanka in 1990?",
+        "expected": False,
+    },
+    {
+        "question": "What is the capital city of Japan?",
+        "expected": False,
+    }
 ]
 
 
 def evaluate():
 
     print("\n📊 University RAG Chatbot Evaluation Report")
-    print("=" * 50)
+    print("=" * 60)
 
     retriever = Retriever()
     agent = RAGAgent()
 
-    total_questions = len(test_questions)
+    TP = 0
+    FP = 0
+    TN = 0
+    FN = 0
 
-    answered = 0
-    unanswered = 0
     total_time = 0
 
+    for i, item in enumerate(test_questions, start=1):
 
-    for i, question in enumerate(test_questions, start=1):
+        question = item["question"]
+        expected = item["expected"]
 
         print(f"\nQuestion {i}: {question}")
 
-        start_time = time.time()
+        start = time.time()
+
+        predicted = False
 
         try:
 
@@ -44,72 +75,87 @@ def evaluate():
                     doc.page_content for doc in results
                 )
 
-                answer = agent.generate_answer(
-                    question,
-                    context
-                )
-
+                answer = agent.generate_answer(question, context)
 
                 if isinstance(answer, dict):
                     answer_text = answer.get("answer", "")
                 else:
                     answer_text = str(answer)
 
-
                 if answer_text.strip():
+                    predicted = True
 
-                    answered += 1
+            # -------- Confusion Matrix --------
 
-                    print("✅ Answer Found")
+            if predicted and expected:
+                TP += 1
+                print("✅ True Positive")
 
-                else:
+            elif predicted and not expected:
+                FP += 1
+                print("⚠ False Positive")
 
-                    unanswered += 1
-
-                    print("❌ No Answer")
-
+            elif not predicted and expected:
+                FN += 1
+                print("❌ False Negative")
 
             else:
-
-                unanswered += 1
-
-                print("❌ No Relevant Documents")
-
+                TN += 1
+                print("✅ True Negative")
 
         except Exception as e:
 
-            unanswered += 1
-
             print("Error:", e)
 
+            if expected:
+                FN += 1
+            else:
+                TN += 1
 
-        end_time = time.time()
+        end = time.time()
 
-        response_time = end_time - start_time
+        response_time = end - start
 
         total_time += response_time
 
-        print(f"⏱ Time: {response_time:.2f}s")
+        print(f"⏱ Time : {response_time:.2f} seconds")
 
+    total = TP + FP + TN + FN
 
-    accuracy = (answered / total_questions) * 100
+    accuracy = (TP + TN) / total if total else 0
 
-    avg_time = total_time / total_questions
+    precision = TP / (TP + FP) if (TP + FP) else 0
 
+    recall = TP / (TP + FN) if (TP + FN) else 0
+
+    f1 = (
+        2 * precision * recall / (precision + recall)
+        if (precision + recall)
+        else 0
+    )
+
+    avg_time = total_time / total if total else 0
 
     print("\n")
-    print("=" * 50)
+    print("=" * 60)
     print("FINAL EVALUATION RESULT")
-    print("=" * 50)
+    print("=" * 60)
 
-    print(f"Total Questions : {total_questions}")
-    print(f"Answered        : {answered}")
-    print(f"Unanswered      : {unanswered}")
-    print(f"Accuracy        : {accuracy:.2f}%")
+    print(f"Total Questions : {total}")
+    print(f"TP              : {TP}")
+    print(f"FP              : {FP}")
+    print(f"TN              : {TN}")
+    print(f"FN              : {FN}")
+
+    print("-" * 60)
+
+    print(f"Accuracy        : {accuracy * 100:.2f}%")
+    print(f"Precision       : {precision * 100:.2f}%")
+    print(f"Recall          : {recall * 100:.2f}%")
+    print(f"F1-Score        : {f1 * 100:.2f}%")
     print(f"Average Time    : {avg_time:.2f} seconds")
 
-    print("=" * 50)
-
+    print("=" * 60)
 
 
 if __name__ == "__main__":
