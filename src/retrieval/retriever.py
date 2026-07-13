@@ -1,7 +1,10 @@
-from langchain_community.vectorstores import Chroma
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
+from langchain_huggingface import HuggingFaceEmbeddings
 import re
+import os
+from dotenv import load_dotenv
 
+load_dotenv()
 
 
 class Retriever:
@@ -9,11 +12,11 @@ class Retriever:
     def __init__(self):
 
         self.embedding_model = HuggingFaceEmbeddings(
-            model_name="sentence-transformers/all-MiniLM-L6-v2"
+            model_name=os.getenv("EMBEDDING_MODEL")
         )
 
         self.vectorstore = Chroma(
-            persist_directory="db",
+            persist_directory=os.getenv("CHROMA_DB_PATH"),
             embedding_function=self.embedding_model
         )
 
@@ -21,7 +24,13 @@ class Retriever:
 
         year_match = re.search(r"20\d{2}", query)
 
-        filter_year = None
+        course_match = re.search(
+            r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
+            query,
+            re.IGNORECASE
+        )
+
+        filter_dict = {}
 
         if year_match:
 
@@ -34,32 +43,64 @@ class Retriever:
                 "2024": "2024-2025"
             }
 
-            filter_year = year_mapping.get(year)
+            if year in year_mapping:
+                filter_dict["academic_year"] = year_mapping[year]
 
-        if filter_year:
+        k = int(os.getenv("TOP_K", 5))
 
-            print(f"\nFiltering by academic year: {filter_year}")
+        THRESHOLD = 0.45
 
-            results = self.vectorstore.similarity_search(
-                query,
-                k=15,
-                filter={"academic_year": filter_year}
-            )
+        try:
 
-        else:
+            if filter_dict:
+                results = self.vectorstore.similarity_search_with_relevance_scores(
+                    query=query,
+                    k=k,
+                    filter=filter_dict
+                )
+            else:
+                results = self.vectorstore.similarity_search_with_relevance_scores(
+                    query=query,
+                    k=k
+                )
 
-            results = self.vectorstore.similarity_search(
-                query,
-                k=15
-            )
+            filtered_docs = []
 
-        print(f"\nResults found: {len(results)}")
+            print("\nDEBUG: Relevance Scores")
+            print("-" * 40)
 
-        for i, doc in enumerate(results, start=1):
+            for doc, score in results:
+                print(f"{score:.3f}")
 
-            print(f"\n----- RESULT {i} -----")
-            print("Academic Year:", doc.metadata.get("academic_year", "Not Found"))
-            print("Source:", doc.metadata.get("source", "Unknown"))
-            print("Page:", doc.metadata.get("page", "Unknown"))
+                if score >= THRESHOLD:
+                    filtered_docs.append(doc)
 
-        return results
+            if course_match:
+
+                course_code = course_match.group(1)
+
+                exact = []
+                others = []
+
+                for doc in filtered_docs:
+
+                    if re.search(
+                        rf"Course\s*Code\s*[-–:]?\s*{course_code}",
+                        doc.page_content,
+                        re.IGNORECASE
+                    ):
+                        exact.append(doc)
+                    else:
+                        others.append(doc)
+
+                if exact:
+                    filtered_docs = exact
+                else:
+                    filtered_docs = others
+
+            return filtered_docs
+
+        except Exception as e:
+
+            print(f"Retrieval Error: {e}")
+            return []

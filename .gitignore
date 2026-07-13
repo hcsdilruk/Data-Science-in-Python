@@ -1,0 +1,10 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Chroma database
+db/
+
+# Virtual environment
+venv/
+.env
