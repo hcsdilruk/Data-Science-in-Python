@@ -5,7 +5,22 @@ from src.prediction.predictor import CutoffPredictor
 from src.utils.answered_manager import AnsweredManager
 from src.logs.unanswered_logger import UnansweredLogger
 from dotenv import load_dotenv
+
 load_dotenv()
+
+# Phrases that indicate the LLM could not answer from the handbook
+FAILURE_PHRASES = [
+    "not mentioned",
+    "not provided",
+    "not found",
+    "no information",
+    "cannot answer",
+    "i don't know",
+    "does not contain",
+    "could not find",
+    "not available",
+    "outside the provided context",
+]
 
 
 def main():
@@ -30,8 +45,10 @@ def main():
 
         # ---------- Prediction Questions ----------
         if router.classify(question) == "prediction":
+
             print("\n💬 ANSWER\n")
             print(router.answer(question))
+
         else:
 
             # ---------- PDF Retrieval ----------
@@ -60,6 +77,7 @@ def main():
                     doc.page_content
                     for doc in results[:3]
                 )
+
                 answer = agent.generate_answer(question, context)
 
                 if isinstance(answer, dict):
@@ -69,11 +87,14 @@ def main():
                     found = True
                     answer_text = str(answer).strip()
 
-                # If LLM couldn't answer
+                # Detect if the LLM failed to answer
                 if (
                     not found
                     or answer_text == ""
-                    or answer_text.lower().startswith("i could not find")
+                    or any(
+                        phrase in answer_text.lower()
+                        for phrase in FAILURE_PHRASES
+                    )
                 ):
                     answer_text = ""
 
@@ -87,7 +108,8 @@ def main():
                 else:
                     logger.log_question(question)
                     answer_text = (
-                        "I could not find that information in the provided documents."
+                        "This question is outside the scope of the University Handbook.\n"
+                        "Your question has been recorded for future improvements."
                     )
 
             # ---------- Display Final Answer ----------

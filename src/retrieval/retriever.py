@@ -22,79 +22,86 @@ class Retriever:
 
     def get_relevant_chunks(self, query):
 
-        year_match = re.search(r"20\d{2}", query)
+    year_match = re.search(r"20\d{2}", query)
 
-        course_match = re.search(
-            r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
-            query,
-            re.IGNORECASE
-        )
+    course_match = re.search(
+        r"(?:course\s*(?:code)?|code)\s*[-:]?\s*(\d{3})",
+        query,
+        re.IGNORECASE
+    )
 
-        filter_dict = {}
+    filter_dict = {}
 
-        if year_match:
+    if year_match:
 
-            year = year_match.group()
+        year = year_match.group()
 
-            year_mapping = {
-                "2020": "2020-2021",
-                "2022": "2022-2023",
-                "2023": "2023-2024",
-                "2024": "2024-2025"
-            }
+        year_mapping = {
+            "2020": "2020-2021",
+            "2022": "2022-2023",
+            "2023": "2023-2024",
+            "2024": "2024-2025"
+        }
 
-            if year in year_mapping:
-                filter_dict["academic_year"] = year_mapping[year]
+        if year in year_mapping:
+            filter_dict["academic_year"] = year_mapping[year]
 
-        k = int(os.getenv("TOP_K", 5))
-        fetch_k = int(os.getenv("FETCH_K", 20))
+    k = int(os.getenv("TOP_K", 5))
 
-        try:
+    # Relevance threshold (0 - 1)
+    THRESHOLD = 0.45
 
-            if filter_dict:
+    try:
 
-                results = self.vectorstore.max_marginal_relevance_search(
-                    query=query,
-                    k=k,
-                    fetch_k=fetch_k,
-                    filter=filter_dict
-                )
+        if filter_dict:
+            results = self.vectorstore.similarity_search_with_relevance_scores(
+                query=query,
+                k=k,
+                filter=filter_dict
+            )
+        else:
+            results = self.vectorstore.similarity_search_with_relevance_scores(
+                query=query,
+                k=k
+            )
 
-            else:
+        filtered_docs = []
 
-                results = self.vectorstore.max_marginal_relevance_search(
-                    query=query,
-                    k=k,
-                    fetch_k=fetch_k
-                )
+        print("\nDEBUG: Relevance Scores")
+        print("-" * 40)
 
-            if course_match:
+        for doc, score in results:
+            print(f"{score:.3f}")
 
-                course_code = course_match.group(1)
+            if score >= THRESHOLD:
+                filtered_docs.append(doc)
 
-                exact = []
-                others = []
+        if course_match:
 
-                for doc in results:
+            course_code = course_match.group(1)
 
-                    if re.search(
-                        rf"Course\s*Code\s*[-–:]\s*{course_code}",
-                        doc.page_content,
-                        re.IGNORECASE
-                    ):
-                        exact.append(doc)
-                    else:
-                        others.append(doc)
+            exact = []
+            others = []
 
-                # Return only exact matches if found
-                if exact:
-                    results = exact
+            for doc in filtered_docs:
+
+                if re.search(
+                    rf"Course\s*Code\s*[-–:]?\s*{course_code}",
+                    doc.page_content,
+                    re.IGNORECASE
+                ):
+                    exact.append(doc)
                 else:
-                    results = others
+                    others.append(doc)
 
-            return results
+            if exact:
+                filtered_docs = exact
+            else:
+                filtered_docs = others
 
-        except Exception as e:
+        return filtered_docs
 
-            print(f"Retrieval Error: {e}")
-            return []
+    except Exception as e:
+
+        print(f"Retrieval Error: {e}")
+        return []
