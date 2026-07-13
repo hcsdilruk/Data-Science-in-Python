@@ -1,15 +1,11 @@
 from src.retrieval.retriever import Retriever
 from src.agent.rag_agent import RAGAgent
-from src.agent.router import QuestionRouter
-from src.prediction.predictor import CutoffPredictor
 
 
 def main():
 
     retriever = Retriever()
     agent = RAGAgent()
-    predictor = CutoffPredictor()
-    router = QuestionRouter(predictor)
 
     while True:
 
@@ -18,11 +14,6 @@ def main():
         if question.lower() in ["exit", "quit"]:
             print("Goodbye!")
             break
-
-        if router.classify(question) == "prediction":
-            print("\n===== PREDICTION (from historical cut-off data) =====\n")
-            print(router.answer(question))
-            continue
 
         results = retriever.get_relevant_chunks(question)
 
