@@ -1,25 +1,3 @@
-"""Extract UGC cut-off Z-score tables from handbook / COP PDFs into a CSV.
-
-The cut-off tables (Section 9 of the student handbooks) are drawn as a grid
-of district rows x course columns, sometimes rotated 90 degrees on the page,
-with course / university names as vertical text. Layout differs between
-editions (only 2024-25 has a uni-code header row), so the parser is layout
-driven:
-
-  1. find the rotation at which district names + z-scores read horizontally
-  2. build column centers by clustering the x positions of the values
-  3. read each column's vertical header text (course + university), trying
-     both character orders since vertical text direction varies by edition
-  4. assign every value to a column by x distance, never by token order,
-     so missing cells cannot shift a row
-
-Output: data/cutoffs/cutoffs.csv with
-    data_year, syllabus, district, uni_code, course, university,
-    zscore, status, source, page
-data_year is the academic year the cut-offs apply to (printed inside the
-table), not the handbook edition year.
-"""
-
 import glob
 import io
 import os
@@ -44,7 +22,6 @@ ANY_NUM_RE = re.compile(r"\d\.\d{4}|\d{4}\.\d")
 CODE_RE = re.compile(r"^\d{3}[A-Z]$")
 YEAR_RE = re.compile(r"ACADEMIC YEAR\s*[-:–]?\s*(\d{4})\s*/\s*(\d{4})")
 
-# vocabulary used to decide whether vertical header text is reversed
 VOCAB = re.compile(
     r"UNIVERSITY|SCIENCE|MEDICINE|ENGINEERING|TECHNOLOGY|MANAGEMENT|"
     r"SURGERY|NURSING|PHARMACY|AGRICULTURE|DENTAL|ARTS|LAW|COMMERCE|"
@@ -54,9 +31,8 @@ VOCAB = re.compile(
     re.IGNORECASE,
 )
 
-
 def _rotated_page_words(src_path, page_idx, deg):
-    """Return (words, text) of one page after adding `deg` to its rotation."""
+    
     reader = PdfReader(src_path)
     page = reader.pages[page_idx]
     if deg:
@@ -74,7 +50,7 @@ def _rotated_page_words(src_path, page_idx, deg):
 
 
 def _candidate_pages(src_path):
-    """Pages that contain many z-score-like numbers in any orientation."""
+    
     out = []
     with pdfplumber.open(src_path) as pdf:
         for i, page in enumerate(pdf.pages):
@@ -88,7 +64,7 @@ def _candidate_pages(src_path):
 
 
 def _grid_rotation(src_path, page_idx):
-    """Find the rotation at which district rows read horizontally."""
+    
     for deg in (0, 90, 180, 270):
         words, text = _rotated_page_words(src_path, page_idx, deg)
         upright = [w["text"] for w in words if w.get("upright", True)]
@@ -100,7 +76,7 @@ def _grid_rotation(src_path, page_idx):
 
 
 def _cluster_lines(words, tol=3.0):
-    """Group words into horizontal lines by their `top` coordinate."""
+    
     lines = []
     for w in sorted(words, key=lambda w: (w["top"], w["x0"])):
         if lines and abs(w["top"] - lines[-1][0]["top"]) <= tol:
@@ -111,7 +87,7 @@ def _cluster_lines(words, tol=3.0):
 
 
 def _district_rows(words):
-    """Return [(district, [value_word, ...]), ...] from the grid view."""
+    
     rows = []
     for line in _cluster_lines([w for w in words if w.get("upright", True)]):
         tokens = [w["text"] for w in line]
@@ -124,7 +100,7 @@ def _district_rows(words):
 
 
 def _column_centers(rows, gap=6.0):
-    """Cluster the x centers of all value tokens into column positions."""
+    
     centers = sorted(
         (w["x0"] + w["x1"]) / 2
         for _, vw in rows for w in vw
@@ -142,12 +118,7 @@ def _column_centers(rows, gap=6.0):
 
 
 def _read_stack(stack_words):
-    """Join a column's vertical header words into readable text.
-
-    Vertical text direction varies by edition, so build the string both
-    ways and keep whichever contains more known vocabulary.
-    """
-    # each vertical line of text sits at its own x; order lines left->right
+    
     lines = []
     for w in sorted(stack_words, key=lambda w: (round(w["x0"]), w["top"])):
         if lines and abs(w["x0"] - lines[-1][0]["x0"]) <= 3:
@@ -166,7 +137,7 @@ def _read_stack(stack_words):
 
     def score(s):
         pts = 2 * len(VOCAB.findall(s))
-        # a well-formed header opens the parenthesis before closing it
+       
         if "(" in s and (")" not in s or s.index("(") < s.index(")")):
             pts += 1
         elif ")" in s:
@@ -178,7 +149,7 @@ def _read_stack(stack_words):
 
 
 def _column_headers(words, col_centers):
-    """Map column center -> (uni_code, course, university)."""
+    
     if not col_centers:
         return {}
     gaps = [b - a for a, b in zip(col_centers, col_centers[1:])]
@@ -209,7 +180,7 @@ def _column_headers(words, col_centers):
 
 
 def extract_pdf(src_path):
-    """Extract all cut-off rows from one PDF. Returns a list of dicts."""
+   
     out = []
     for page_idx in _candidate_pages(src_path):
         deg, words, text = _grid_rotation(src_path, page_idx)
@@ -220,8 +191,7 @@ def extract_pdf(src_path):
         years = YEAR_RE.findall(flat)
         data_year = None
         if years:
-            # when the edition year also appears, the data year is the
-            # earlier one (cut-offs are always for the previous intake)
+            
             y = min(years, key=lambda y: int(y[0]))
             data_year = f"{y[0]}/{y[1]}"
 
@@ -279,7 +249,7 @@ def main():
         sys.exit("No cut-off data extracted")
 
     df = pd.DataFrame(all_rows)
-    # the same data year can appear in two sources; keep one value per cell
+   
     df = df.drop_duplicates(
         subset=["data_year", "syllabus", "district", "course", "university"])
     out = os.path.join(out_dir, "cutoffs.csv")

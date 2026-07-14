@@ -1,15 +1,3 @@
-"""Cut-off Z-score prediction from historical UGC data.
-
-Works on data/cutoffs/cutoffs.csv produced by src/cutoffs/extract_cutoffs.py.
-Each (course, university, district) is a small yearly time series; forecasts
-use scikit-learn LinearRegression on year -> z-score with an uncertainty
-band from the model residuals. With very short series (< 3 points) the
-forecast falls back to the last known value.
-
-The old-syllabus 2019/2020 tables are excluded: those z-scores are on a
-different scale and would distort trends.
-"""
-
 import difflib
 import os
 import re
@@ -23,8 +11,7 @@ BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 CSV = os.path.join(BASE, "data", "cutoffs", "cutoffs.csv")
 INTAKE_CSV = os.path.join(BASE, "data", "cutoffs", "intakes.csv")
 
-# a cut-off can move a fair amount between years; anything within this
-# margin of the forecast is treated as borderline rather than safe
+
 BORDERLINE_MARGIN = 0.05
 
 
@@ -52,8 +39,7 @@ class CutoffPredictor:
             self.intakes = pd.read_csv(intake_csv)
             self.intake_courses = sorted(self.intakes["course"].dropna().unique())
 
-    # ---------- matching helpers ----------
-
+    
     def match_course(self, name):
         if not name:
             return None
@@ -85,25 +71,22 @@ class CutoffPredictor:
         close = difflib.get_close_matches(name, self.districts, n=1, cutoff=0.7)
         return close[0] if close else None
 
-    # ---------- core series access ----------
-
+    
     def series(self, course, district, university=None):
-        """Historical (year, zscore) points for one selection."""
+        
         d = self.df[(self.df["course"] == course)
                     & (self.df["district"] == district)]
         if university:
             d = d[d["university"] == university]
         d = d.dropna(subset=["zscore"])
-        # when several universities offer the course and none was specified,
-        # take the per-year minimum across them: the lowest z-score that
-        # would have gained admission to the course somewhere
+        
         agg = d.groupby("year")["zscore"].min().reset_index()
         return agg.sort_values("year")
 
-    # ---------- public API ----------
+    
 
     def forecast(self, course, district, university=None, target_year=None):
-        """Predict the cut-off for the year after the last known one."""
+        
         s = self.series(course, district, university)
         if s.empty:
             return None
@@ -135,7 +118,7 @@ class CutoffPredictor:
         }
 
     def trend(self, course, district, university=None):
-        """Direction of movement of a cut-off over the known years."""
+        
         f = self.forecast(course, district, university)
         if not f:
             return None
@@ -153,7 +136,7 @@ class CutoffPredictor:
         return f
 
     def admission_chances(self, zscore, district, course=None, top=15):
-        """Classify courses as likely / borderline / unlikely for a student."""
+        
         courses = [course] if course else self.courses
         results = []
         for c in courses:
@@ -170,7 +153,7 @@ class CutoffPredictor:
                 verdict = "unlikely"
             results.append({**f, "student_z": zscore, "gap": round(gap, 4),
                             "verdict": verdict})
-        # most competitive courses the student can still reach come first
+        
         order = {"likely": 0, "borderline": 1, "unlikely": 2}
         results.sort(key=lambda r: (order[r["verdict"]], -r["prediction"]))
         if course:
@@ -178,7 +161,7 @@ class CutoffPredictor:
         picks = [r for r in results if r["verdict"] != "unlikely"]
         return picks[:top] if picks else results[:5]
 
-    # ---------- intake forecasts ----------
+    
 
     def match_intake_course(self, name):
         if not name or not self.intake_courses:
@@ -194,7 +177,7 @@ class CutoffPredictor:
         return close[0] if close else None
 
     def intake_forecast(self, course):
-        """Predict next year's proposed intake for a course (island-wide)."""
+        
         if self.intakes is None:
             return None
         s = (self.intakes[self.intakes["course"] == course]
@@ -220,10 +203,10 @@ class CutoffPredictor:
                 "method": f"linear regression on {len(s)} years",
                 "history": history, "direction": direction}
 
-    # ---------- evaluation (leave-last-year-out backtest) ----------
-
+    
+ 
     def evaluate(self):
-        """Predict the newest year from older ones; report MAE."""
+        
         newest = int(self.df["year"].max())
         y_true, y_pred, rows = [], [], []
         keys = self.df[["course", "district"]].drop_duplicates()
@@ -250,24 +233,6 @@ class CutoffPredictor:
                 "details": pd.DataFrame(rows)}
 
 
-if __name__ == "__main__":
-    p = CutoffPredictor()
-    print(f"Loaded {len(p.df)} rows | {len(p.courses)} courses | "
-          f"{len(p.districts)} districts")
 
-    print("\n--- forecast: Medicine, Colombo ---")
-    print(p.forecast("MEDICINE", "COLOMBO"))
 
-    print("\n--- trend: Engineering, Kandy ---")
-    print(p.trend(p.match_course("ENGINEERING"), "KANDY"))
-
-    print("\n--- chances: z=1.85, Gampaha ---")
-    for r in p.admission_chances(1.85, "GAMPAHA")[:8]:
-        print(f"  {r['verdict']:10s} {r['course'][:40]:42s} "
-              f"pred={r['prediction']} gap={r['gap']:+.3f}")
-
-    print("\n--- backtest ---")
-    ev = p.evaluate()
-    print(f"series: {ev['n_series']}  target year: {ev['target_year']}  "
-          f"MAE: {ev['mae']}")
-    print(ev["details"].nlargest(5, "abs_error").to_string(index=False))
+    

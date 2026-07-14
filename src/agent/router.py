@@ -1,11 +1,3 @@
-"""Route questions to the RAG pipeline or the prediction engine.
-
-Prediction questions ask about the future or about a student's own chances;
-their answers are computed from the extracted cut-off dataset, never by the
-language model, so the numbers cannot be hallucinated. Everything else goes
-through the normal retrieval + LLM path.
-"""
-
 import re
 
 PREDICT_RE = re.compile(
@@ -33,8 +25,6 @@ class QuestionRouter:
     def classify(self, question):
         return "prediction" if PREDICT_RE.search(question) else "factual"
 
-    # ---------- entity extraction ----------
-
     def parse(self, question):
         q_upper = question.upper()
 
@@ -50,7 +40,7 @@ class QuestionRouter:
                     break
 
         course = None
-        # longest known course name mentioned in the question wins
+        
         for c in sorted(self.predictor.courses, key=len, reverse=True):
             if c in q_upper:
                 course = c
@@ -95,14 +85,13 @@ class QuestionRouter:
                 return cand
         return None
 
-    # ---------- answering ----------
 
     def answer(self, question):
         p = self.parse(question)
         pred = self.predictor
 
         if p["intent"] == "intake":
-            # intakes are island-wide, so no district is needed
+            
             course = (pred.match_intake_course(p["course"])
                       or self._intake_course_from(question))
             if course is None:
