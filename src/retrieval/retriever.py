@@ -47,26 +47,33 @@ class Retriever:
                 filter_dict["academic_year"] = year_mapping[year]
 
         k = int(os.getenv("TOP_K", 5))
-        fetch_k = int(os.getenv("FETCH_K", 20))
+
+        THRESHOLD = 0.45
 
         try:
 
             if filter_dict:
-
-                results = self.vectorstore.max_marginal_relevance_search(
+                results = self.vectorstore.similarity_search_with_relevance_scores(
                     query=query,
                     k=k,
-                    fetch_k=fetch_k,
                     filter=filter_dict
                 )
-
             else:
-
-                results = self.vectorstore.max_marginal_relevance_search(
+                results = self.vectorstore.similarity_search_with_relevance_scores(
                     query=query,
-                    k=k,
-                    fetch_k=fetch_k
+                    k=k
                 )
+
+            filtered_docs = []
+
+            print("\nDEBUG: Relevance Scores")
+            print("-" * 40)
+
+            for doc, score in results:
+                print(f"{score:.3f}")
+
+                if score >= THRESHOLD:
+                    filtered_docs.append(doc)
 
             if course_match:
 
@@ -75,10 +82,10 @@ class Retriever:
                 exact = []
                 others = []
 
-                for doc in results:
+                for doc in filtered_docs:
 
                     if re.search(
-                        rf"Course\s*Code\s*[-–:]\s*{course_code}",
+                        rf"Course\s*Code\s*[-–:]?\s*{course_code}",
                         doc.page_content,
                         re.IGNORECASE
                     ):
@@ -86,13 +93,12 @@ class Retriever:
                     else:
                         others.append(doc)
 
-                # Return only exact matches if found
                 if exact:
-                    results = exact
+                    filtered_docs = exact
                 else:
-                    results = others
+                    filtered_docs = others
 
-            return results
+            return filtered_docs
 
         except Exception as e:
 
