@@ -48,7 +48,7 @@ class Retriever:
 
         k = int(os.getenv("TOP_K", 5))
 
-        THRESHOLD = 0.45
+        THRESHOLD = 0.25
 
         try:
 
