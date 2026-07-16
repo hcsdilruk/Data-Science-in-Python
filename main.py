@@ -75,7 +75,7 @@ def main():
 
                 context = "\n\n".join(
                     doc.page_content
-                    for doc in results[:3]
+                    for doc in results[:4]
                 )
 
                 answer = agent.generate_answer(question, context)

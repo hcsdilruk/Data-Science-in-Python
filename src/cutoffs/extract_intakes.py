@@ -1,3 +1,19 @@
+"""Extract 'Proposed Intake' figures from UGC student handbooks.
+
+Section 2 of each handbook lists every course of study with a heading like
+
+    2.2.3.16 Physiotherapy
+             (Course Code - 054)
+             (Proposed Intake - 101)
+
+and occasionally a combined form
+    (Proposed Intakes : Music - 300; Dance - 300; Drama & Theatre - 74)
+
+The intake applies to the handbook's own admission year (unlike the
+cut-off tables, which describe the previous year). Output:
+data/cutoffs/intakes.csv with year, course, course_code, intake, source.
+"""
+
 import glob
 import os
 import re
@@ -31,7 +47,7 @@ def extract_pdf(path):
                 h = HEADING_RE.match(line)
                 if h:
                     name = h.group(1).strip()
-                    
+                    # headings are course names, not sentence fragments
                     if not re.search(r"\b(the|and of|for the)\b", name.lower()):
                         heading = " ".join(name.split())
                         code = None
